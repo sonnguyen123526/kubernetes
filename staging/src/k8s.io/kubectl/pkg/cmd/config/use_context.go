@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -95,11 +97,19 @@ func (o useContextOptions) validate(config *clientcmdapi.Config) error {
 		return errors.New("empty context names are not allowed")
 	}
 
-	for name := range config.Contexts {
-		if name == o.contextName {
-			return nil
-		}
+	if _, ok := config.Contexts[o.contextName]; ok {
+		return nil
 	}
 
-	return fmt.Errorf("no context exists with the name: %q", o.contextName)
+	if len(config.Contexts) == 0 {
+		return fmt.Errorf("no context exists with the name: %q; the kubeconfig has no contexts defined", o.contextName)
+	}
+
+	// Map iteration order is random; sort so the hint is stable and scannable.
+	names := make([]string, 0, len(config.Contexts))
+	for name := range config.Contexts {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return fmt.Errorf("no context exists with the name: %q; available contexts: %s", o.contextName, strings.Join(names, ", "))
 }

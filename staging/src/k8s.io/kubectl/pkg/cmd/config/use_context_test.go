@@ -103,3 +103,38 @@ func (test useContextTest) run(t *testing.T) {
 		t.Errorf("Failed in :%q\n expected config %v, but found %v\n in kubeconfig\n", test.description, test.expectedConfig, config)
 	}
 }
+
+func TestUseContextValidateListsAvailableContexts(t *testing.T) {
+	tests := []struct {
+		name     string
+		contexts map[string]*clientcmdapi.Context
+		expected string
+	}{
+		{
+			name: "lists existing contexts sorted",
+			contexts: map[string]*clientcmdapi.Context{
+				"staging":  {},
+				"dev":      {},
+				"minikube": {},
+			},
+			expected: `no context exists with the name: "prod"; available contexts: dev, minikube, staging`,
+		},
+		{
+			name:     "no contexts defined",
+			contexts: map[string]*clientcmdapi.Context{},
+			expected: `no context exists with the name: "prod"; the kubeconfig has no contexts defined`,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			o := useContextOptions{contextName: "prod"}
+			err := o.validate(&clientcmdapi.Config{Contexts: tc.contexts})
+			if err == nil {
+				t.Fatal("expected an error, got nil")
+			}
+			if err.Error() != tc.expected {
+				t.Errorf("expected %q, got %q", tc.expected, err.Error())
+			}
+		})
+	}
+}
